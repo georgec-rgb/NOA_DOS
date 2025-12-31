@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Directory of Services – Orange Health Labs</title>
+
+<!-- Favicon -->
+<link rel="icon" href="favicon.png" type="image/png">
+
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --oh-orange: #ff6600;
+  --oh-light: #fff7f2;
+  --oh-border: #e3e3e3;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background:#ffffff;
+  margin:0;
+  color:#222;
+}
+
+/* PRINT BUTTON */
+#printBtn {
+  position:fixed;
+  right:20px;
+  top:90px;
+  z-index:1000;
+  background:var(--oh-orange);
+  border:none;
+  padding:8px 14px;
+  border-radius:6px;
+  color:#fff;
+  cursor:pointer;
+  font-size:14px;
+  font-weight:600;
+}
+#printBtn:hover { opacity:.9; }
+
+/* HEADER */
+#header-wrap {
+  padding:10px 20px 0;
+}
+#header-wrap img {
+  height:70px;
+}
+#main-title {
+  font-size:30px;
+  font-weight:700;
+  color:var(--oh-orange);
+  margin-top:6px;
+}
+
+/* FILTER BAR */
+#filters {
+  position:sticky;
+  top:0;
+  z-index:900;
+  background:#fff;
+  border-bottom:2px solid var(--oh-orange);
+  padding:12px 20px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+#filters input, #filters select, #filters button {
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid var(--oh-border);
+  font-size:14px;
+  min-width:150px;
+}
+#filters button {
+  background:var(--oh-orange);
+  color:white;
+  border:none;
+  cursor:pointer;
+  font-weight:600;
+}
+
+/* DEPARTMENT TITLE */
+.dept-block {
+  margin:28px 0 8px;
+  padding:0 20px;
+  width:100%;
+}
+.dept-title {
+  font-size:22px;
+  font-weight:700;
+  color:var(--oh-orange);
+  border-bottom:3px solid var(--oh-orange);
+  display:inline-block;
+  padding-bottom:3px;
+}
+
+/* TABLE AREA */
+.table-wrap {
+  width:100%;
+  margin:0 0 25px;
+  padding:0 20px;
+  box-sizing:border-box;
+}
+
+/* TABLE */
+table { 
+  width:100%;
+  border-collapse:collapse;
+}
+
+th, td {
+  padding:8px 10px;
+  border-bottom:1px solid var(--oh-border);
+  font-size:14px;
+  vertical-align:top;
+  white-space:normal;
+  word-wrap:break-word;
+}
+
+th {
+  background:var(--oh-light);
+  border-bottom:2px solid var(--oh-orange);
+  font-weight:700;
+  color:#444;
+  text-align:left;
+}
+
+th:nth-child(1), td:nth-child(1),
+th:nth-child(7), td:nth-child(7),
+th:nth-child(8), td:nth-child(8),
+th:nth-child(9), td:nth-child(9),
+th:nth-child(10), td:nth-child(10),
+th:nth-child(13), td:nth-child(13){
+  width:60px;
+  text-align:center;
+}
+
+tr:nth-child(even) td { background:#fafafa; }
+
+/* PRINT FIX */
+@media print {
+  body { margin:0; padding:0; }
+  #filters, #printBtn, #header-wrap { display:none !important; }
+  table { 
+    font-size:11px; 
+    page-break-inside:auto;
+  }
+  tr { page-break-inside:avoid; page-break-after:auto; }
+  th { position:static; } /* sticky header breaks print */
+}
+</style>
+</head>
+
+<body>
+
+<button id="printBtn" onclick="window.print()">Print DOS</button>
+
+<!-- HEADER -->
+<div id="header-wrap">
+  <img src="logo.png">
+  <div id="main-title">Directory of Services (DOS)</div>
+</div>
+
+<!-- FILTERS -->
+<div id="filters">
+  <input id="searchBox" placeholder="Search test / investigation / method...">
+  <select id="deptFilter"><option value="">Department: All</option></select>
+  <select id="nablFilter">
+    <option value="">NABL: All</option>
+    <option value="yes">NABL: Yes</option>
+    <option value="no">NABL: No</option>
+  </select>
+  <select id="cityFilter"><option value="">City: All</option></select>
+  <button onclick="resetFilters()">Reset</button>
+</div>
+
+<div id="dosContainer"></div>
+
+<script>
+
+/* ---- Frequency first letters ---- */
+/* Thu shown as Th, Sat as Sa to avoid confusion */
+function formatFrequency(freq){
+  const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  return String(freq).split("").map((v,i)=> v==="1" ? days[i] : "").filter(Boolean).join(" ");
+}
+
+/* ---- Reset filters ---- */
+function resetFilters(){
+  searchBox.value="";
+  deptFilter.value="";
+  nablFilter.value="";
+  cityFilter.value="";
+  applyFilters();
+}
+
+/* ---- FETCH AND RENDER ---- */
+fetch("data.json")
+.then(r=>r.json())
+.then(data=>{
+  const grouped={};
+
+  data.forEach(row=>{
+    if(String(row.status).trim().toLowerCase()!=="yes") return;
+    const id=row.orange_test_id;
+
+    if(!grouped[id]){
+      grouped[id]={
+        test_name:row.test_name,
+        department:row.department,
+        investigations:new Set(),
+        methods:new Set(),
+        sample:row.sample_name,
+        container:row.vial_type,
+        fasting:row.is_fasting_required,
+        nabl:row.is_nabl_accredited,
+        frequency:formatFrequency(row.testing_frequency),
+        tat:row.lab_tat,
+        lab:row.lab_name,
+        city:row.city,
+        price:row.price
+      };
+    } else if(String(row.is_nabl_accredited).trim().toLowerCase()==="yes"){
+      grouped[id].nabl="Yes";
+    }
+
+    grouped[id].investigations.add(row.investigation_name);
+    grouped[id].methods.add(row.method_description || row.name);
+  });
+
+  const tests=Object.values(grouped);
+
+  const depts=[...new Set(tests.map(t=>t.department))].sort();
+  depts.forEach(d=>{
+    const o=document.createElement("option");
+    o.value=d; o.textContent=d;
+    deptFilter.appendChild(o);
+  });
+
+  const cities=[...new Set(tests.map(t=>t.city))].sort();
+  cities.forEach(c=>{
+    const o=document.createElement("option");
+    o.value=c; o.textContent=c;
+    cityFilter.appendChild(o);
+  });
+
+  window.applyFilters=function(){
+    const q=searchBox.value.toLowerCase();
+    const dept=deptFilter.value;
+    const nabl=nablFilter.value.toLowerCase();
+    const city=cityFilter.value;
+
+    const byDept={};
+    let rowNum = 1;
+
+    tests.forEach(t=>{
+      const nablClean=String(t.nabl).trim().toLowerCase();
+
+      if(dept && t.department!==dept) return;
+      if(nabl && nablClean!==nabl) return;
+      if(city && t.city!==city) return;
+
+      if(q && !(
+        t.test_name.toLowerCase().includes(q) ||
+        [...t.investigations].join(", ").toLowerCase().includes(q) ||
+        [...t.methods].join(", ").toLowerCase().includes(q) ||
+        t.sample.toLowerCase().includes(q)
+      )) return;
+
+      if(!byDept[t.department]) byDept[t.department]=[];
+      byDept[t.department].push({...t, _rowNumber: rowNum++});
+    });
+
+    const container=document.getElementById("dosContainer");
+    container.innerHTML="";
+
+    Object.keys(byDept).sort().forEach(dep=>{
+      const block=document.createElement("div");
+      block.className="dept-block";
+      block.innerHTML=`<div class="dept-title">${dep}</div>`;
+      container.appendChild(block);
+
+      const wrap=document.createElement("div");
+      wrap.className="table-wrap";
+
+      wrap.innerHTML=`
+      <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Investigations</th>
+          <th>Methods</th>
+          <th>Sample</th>
+          <th>Container</th>
+          <th>Fast</th>
+          <th>NABL</th>
+          <th>Freq</th>
+          <th>TAT</th>
+          <th>Lab</th>
+          <th>City</th>
+          <th>₹</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      </table>`;
+
+      const tbody=wrap.querySelector("tbody");
+
+      byDept[dep].forEach(t=>{
+        const nablClean=String(t.nabl).trim().toLowerCase()==="yes" ? "Yes" : "No";
+        const tr=document.createElement("tr");
+        tr.innerHTML=`
+          <td>${t._rowNumber}</td>
+          <td>${t.test_name}</td>
+          <td>${[...t.investigations].join(", ")}</td>
+          <td>${[...t.methods].join(", ")}</td>
+          <td>${t.sample}</td>
+          <td>${t.container}</td>
+          <td>${t.fasting}</td>
+          <td>${nablClean}</td>
+          <td>${t.frequency}</td>
+          <td>${t.tat}</td>
+          <td>${t.lab}</td>
+          <td>${t.city}</td>
+          <td>${t.price}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      container.appendChild(wrap);
+    });
+  };
+
+  searchBox.oninput=applyFilters;
+  deptFilter.onchange=applyFilters;
+  nablFilter.onchange=applyFilters;
+  cityFilter.onchange=applyFilters;
+
+  applyFilters();
+});
+</script>
+</body>
+</html>
