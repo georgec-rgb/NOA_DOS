@@ -5,7 +5,7 @@
 <title>Directory of Services – Orange Health Labs</title>
 
 <!-- Favicon -->
-<link rel="icon" href="favicon.png" type="image/png">
+<link rel="icon" href="file.png" type="image/png">
 
 <!-- Google Font -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -23,6 +23,23 @@ body {
   margin:0;
   color:#222;
 }
+
+/* LOCATION BUTTON */
+#locationBtn {
+  position:fixed;
+  right:20px;
+  top:50px;
+  z-index:1000;
+  background:#333;
+  border:none;
+  padding:8px 14px;
+  border-radius:6px;
+  color:#fff;
+  cursor:pointer;
+  font-size:14px;
+  font-weight:600;
+}
+#locationBtn:hover { opacity:.9; }
 
 /* PRINT BUTTON */
 #printBtn {
@@ -143,28 +160,27 @@ tr:nth-child(even) td { background:#fafafa; }
 /* PRINT FIX */
 @media print {
   body { margin:0; padding:0; }
-  #filters, #printBtn, #header-wrap { display:none !important; }
+  #filters, #printBtn, #locationBtn, #header-wrap { display:none !important; }
   table { 
     font-size:11px; 
     page-break-inside:auto;
   }
   tr { page-break-inside:avoid; page-break-after:auto; }
-  th { position:static; } /* sticky header breaks print */
+  th { position:static; }
 }
 </style>
 </head>
 
 <body>
 
+<button id="locationBtn">OHL NCR Noida</button>
 <button id="printBtn" onclick="window.print()">Print DOS</button>
 
-<!-- HEADER -->
 <div id="header-wrap">
   <img src="logo.png">
-  <div id="main-title">Directory of Services (DOS)</div>
+  <div id="main-title">Orange Health - Directory of Services (DOS)</div>
 </div>
 
-<!-- FILTERS -->
 <div id="filters">
   <input id="searchBox" placeholder="Search test / investigation / method...">
   <select id="deptFilter"><option value="">Department: All</option></select>
@@ -180,9 +196,7 @@ tr:nth-child(even) td { background:#fafafa; }
 <div id="dosContainer"></div>
 
 <script>
-
 /* ---- Frequency first letters ---- */
-/* Thu shown as Th, Sat as Sa to avoid confusion */
 function formatFrequency(freq){
   const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   return String(freq).split("").map((v,i)=> v==="1" ? days[i] : "").filter(Boolean).join(" ");
@@ -227,7 +241,12 @@ fetch("data.json")
       grouped[id].nabl="Yes";
     }
 
-    grouped[id].investigations.add(row.investigation_name);
+    /* ---- FIX: If investigation is blank, use test name ---- */
+    const inv = (row.investigation_name && row.investigation_name.trim() !== "")
+                  ? row.investigation_name
+                  : row.test_name;
+    grouped[id].investigations.add(inv);
+
     grouped[id].methods.add(row.method_description || row.name);
   });
 
@@ -254,7 +273,7 @@ fetch("data.json")
     const city=cityFilter.value;
 
     const byDept={};
-    let rowNum = 1;
+    let rowNum=1;
 
     tests.forEach(t=>{
       const nablClean=String(t.nabl).trim().toLowerCase();
@@ -345,3 +364,4 @@ fetch("data.json")
 </script>
 </body>
 </html>
+
